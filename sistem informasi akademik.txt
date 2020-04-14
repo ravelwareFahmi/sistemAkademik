@@ -1,0 +1,131 @@
+1. setting migrasi database
+    setting nama database dan user di env.
+        buka appServiceProvider 
+            tambahakan use Illuminate\Support\Facades\Schema;
+            pada function boots tambahkan Schema::defaultStringLength(191);
+        buat tabel migrasi
+            php artisan make:migration create_table_siswa --create=siswa 
+            lalu buka database/migration/create_table_siswa buat seperti dibawah ini 
+                 Schema::create('siswa', function (Blueprint $table) {
+                    $table->increments('id');
+                    $table->string('nama_depan');
+                    $table->string('nama_belakang');
+                    $table->string('jenis_kelamin');
+                    $table->string('agama');
+                    $table->text('alamat');
+                    $table->timestamps();
+                });
+            jalankan migrasi dengan php artisan migrate pada console
+        
+        buat controller
+            php artisan make:controller SiswaController --resource pada console
+        setting route
+            tambahkan route /siswa dengan Route::get('/siswa', 'SiswaController@index');
+            buka SiswaController pada method index tambahakan return view('siswa.index');
+        buat view 
+            buat folder di resource/views siswa dan pada folder siswa buat file index.blade.php
+        buat model siswa dengan Siswa
+            php artisan make:model Siswa 
+            karena pada laravel menggunakan bahasa inggris maka tidak keren kalau modelnya Siswas 
+            jadi untuk mengatasi error nantinya definisikan nama tabel pada model Siswa dengan cara buat properti
+            create $table = 'siswa'; 
+            siswa disini nama tabel di database
+        jalankan server laravel dengan php artisan serv 
+
+2. Mendapatkan data pada database 
+        buka SiswaController lalu tambahkan name space App\Siswa 
+        pada method index parsing data yang ada didatabase ke view dengan cara 
+        
+        $data_siswa = Siswa::all();
+        return view('siswa/index' ,compact('data_siswa'));
+
+        pada view siswa/index test data sudah didapatkan belum dari database dengan cara 
+        dump die() disingkat dd
+        {{ dd(data_siswa) }}
+        jika data berhasil tampil tinggal buat table untuk mempercantik tabel yang menampung data didatabase kita gunakan bootsrap
+
+3. download bootsrap 4 dan jquery 3.4.1 lalu simpan di public
+    
+    buat layouts sebagai template theme di view/layouts.blade.php 
+    <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="X-UA-Compatible" content="ie=edge">
+            <title>@yield('title')</title>
+
+            {{-- include bootstrap berada di folder public js/...  --}}
+            <link rel="stylesheet" href="{{ asset('css/bootstrap.css') }}">
+        </head>
+        <body>
+            @yield('content')
+
+            {{-- include jquery dan bootstrap.js berada di folder public js/...  --}}
+            <script src="{{ asset('js/jquery-3.4.1.min.js') }}"></script>
+            <script src="{{ asset('js/bootstrap.js') }}"></script>
+        </body>
+        </html>
+
+4. meampilkan tabel siswa 
+
+
+Membuat middleware untuk filter login siswa dan admin
+buat field user_id di tabel siswa 
+dan role di tabel user 
+
+php artisan make:middleware CheckRole
+
+file akan dibuat di http/controller/middleware/nama_middleware
+setelah selesai konfig daftarkan middleware yang dibuat ke karnel
+pada protected $route 
+    'nama_middleware' = name_space\middleware\nama_middleware::class
+
+lalu pada route ubah pada group auth agar hanya bisa diakses oleh admin
+Route::group(['middleware' => ['auth','CheckRole:admin']], function())
+
+dan buat group route ke dua 
+Route::group(['middleware' => ['auth','CheckRole:admin,siswa']], function())
+
+kembali ke middleware CheckRole modif parameter roles menjadi ...$roles agar bisa nampung banyak role
+
+function handdle($request, Closure $next,...$roles){
+    if(in_array($request->user()->role,$roles)){
+        return $next($request);
+    }
+    alihkan ke root
+    return redirect('/');
+}
+
+
+tambahkan if di sidebar bagian tampilan dashboard dan siswa 
+@if(auth->user->role() === 'admin')
+    html untuk nampilin menu yang bisa dilihat oleh admin
+@endif
+
+MEMBUAT RELASI
+buat dulu tabel mapel (harus ada data di tabel mapel dan mapel_siswa)
+lalu buat mapel_siswa untuk pivot tabel/relasi dengan siswa
+
+setelah itu buat model 
+cara relasi buat function Siswa di mapel dan sebalikanya karena konsep many to many 
+
+contoh 
+pada model Siswa
+// function untuk deklarasi relasi 
+    public function Mapel(){
+        return $this->belongsToMany(Mapel::class);
+    }
+
+pada model Mapel
+// function untuk deklarasi relasi 
+    public function Siswa(){
+        return $this->belongsToMany(Siswa::class);
+    }
+
+test dengan tinker php artisan tinker 
+$siswa = App\Siswa::find(1) //cari id Siswa 1 
+$siswa->mapel //cek mapel yang terhubung ke id siswa
+
+
+untuk buat chart gunakan highchart
